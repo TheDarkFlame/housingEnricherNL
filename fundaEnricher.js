@@ -1,56 +1,42 @@
 // ==UserScript==
-// @name         FundaEnergyLabelPlayground
+// @name         housingEnricherNL
 // @namespace    com.parker.david
-// @version      Alpha-v1
-// @description  Try to enrich funda pages with energy labels
+// @version      Alpha-v2
+// @description  A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author       David Parker
-// @require      http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
-// @require      https://gist.github.com/raw/2625891/waitForKeyElements.js
-// @require      https://greasyfork.org/scripts/401399-gm-xhr/code/GM%20XHR.js
-// @match        https://www.funda.nl/huur/*
-// @match        https://www.funda.nl/koop/*
 // @match        https://www.funda.nl/zoeken/huur/*
 // @match        https://www.funda.nl/zoeken/koop/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=funda.nl
-// @grant       GM_xmlhttpRequest
 // @grant       GM.xmlhttpRequest
 // @connect     www.ep-online.nl
+// @connect     www.wozwaardeloket.nl
 // ==/UserScript==
+
+//switching stuff for old vs new funda
+//https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
+
+const labelColor = new Map([
+  ['A+++', '#00A54E'],
+  ['A++', '#4CB948'],
+  ['A+', '#BFD72F'],
+  ['A', '#FFF100'],
+  ['B', '#FDB914'],
+  ['C', '#F56E20'],
+  ['D', "#EF1C22"],
+  ['E', "#EF1C22"],
+  ['F', "#EF1C22"],
+  ['G', "#EF1C22"],
+  [undefined, "#D8A3DD"],
+]);
+
+
 (async () => {
 
 //debugger;
 'use strict';
 
 const eponline = 'https://www.ep-online.nl/Energylabel/Search'
-$.ajaxSetup({ xhr: function() {return new GM_XHR; } });
 
-function Request(url, opt={}) {
-	Object.assign(opt, {
-		url,
-		timeout: 2000,
-		responseType: 'json'
-	})
-	return new Promise((resolve, reject) => {
-		opt.onerror = opt.ontimeout = reject
-		opt.onload = resolve
-		GM_xmlhttpRequest(opt)
-	})
-}
-
-
-// $( ".search-result" ).function().css( "border", "3px solid red" );
-
-//doStuff.call( $(".search-result-main")[0] );
-function doStuff() {
-
-    var address = extractAddress($(this).children('a').eq(0).text().trim());
-    var postcode = extractPostcode($(this).children('a').eq(1).text().trim());
-    var eponlineString = postcode + ' ' + address
-    var energyLabelNode = $(this).children('a').first().clone().empty().text("Energy Label: " + eponlineString);
-//    var newNode = $(this).children('a').eq(1).text("Energy Label");
-
-    $(this).append(energyLabelNode);
-}
 
 function extractPostcode(base){
     var parts = base.split(' ');
@@ -73,30 +59,9 @@ function extractToken(response){
     return token
 }
 
-function getLabelInfo(address, token){
-    return $.ajax({
-        url: eponline,
-        type: 'POST',
-        data: {
-            __RequestVerificationToken:token,
-            SearchValue:address
-        },
-        header: {Cookie:"null=0"},
-        dataType: 'JSON',
-        contentType:'application/x-www-form-urlencoded; charset=utf-8'
-    })
-}
-
-//const tokenPromise = Request(eponline, {method: 'GET'})
-// const token = await tokenPromise.then(function(data){return new Promise((resolve,reject) => {resolve=extractToken(data)})})
-//const token = await tokenPromise.then(extractToken)
-//console.log(token)
-
-
-
 function getTokenXhr(){
     return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
+        GM.xmlhttpRequest({
             onerror:reject,
             ontimeout:reject,
             onload: resolve,
@@ -110,7 +75,7 @@ function getTokenXhr(){
 
 function getLabelXhr(token, address){
     return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
+        GM.xmlhttpRequest({
             onerror:reject,
             ontimeout:reject,
             onload: resolve,
@@ -158,11 +123,11 @@ function extractLabelPromise(data){
 }
 
 function extractAddressNodes(doc){
-  let searchResultBase = doc.querySelectorAll(".search-result-main, .search-result-main-promo")
+  let searchResultBase = doc.querySelectorAll('[data-test-id="search-result-item"]')
   let results = Array.from(searchResultBase)
   .map(node=>{
-    let address = extractAddress(node.querySelector('.search-result__header-title.fd-m-none').textContent.trim());
-    let postcode = extractPostcode(node.querySelector('.search-result__header-subtitle.fd-m-none').textContent.trim());
+    let address = extractAddress(node.querySelector('[data-test-id="street-name-house-number"]').textContent.trim());
+    let postcode = extractPostcode(node.querySelector('[data-test-id="postal-code-city"]').textContent.trim());
     return {node, address, postcode};
   })
   return results;
@@ -174,9 +139,48 @@ function extractAddressNodesPromise(token){
     )})
 }
 
+
+// takes a node, parses it, and returns a string summary
+function generateLabelSummary(node){
+  if (node===undefined)
+    return {text:"issue getting label", label:undefined}
+
+  //get the letter label
+  let label = node.querySelector('[class*=bg-label-class-] > span').innerText.trim()
+
+  // check if label is valid
+  let Opnamedatum = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x=> x.innerText.trim()==="Opnamedatum")[0].nextElementSibling.innerText.trim()
+  if (Opnamedatum === "-"){
+    return {text:"unofficial " + label, label:label}
+  }
+
+  //check if pre-2021 type label
+  let energyIndex = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x=> x.innerText.trim()==="EI")
+  if (!!energyIndex.length){
+    return {text:"EnergyIndex: " + energyIndex[0].nextElementSibling.innerText.trim() + " (letter: "+label+")", label:label}
+  }
+
+  // return current energy label class
+  return {text:"EnergyLabel: "+label, label:label}
+
+}
+
+
 function composeNodes(data){
   //add energy label
-  data.filter(prom => prom.status === 'fulfilled').forEach((x) => {x.value.node.append(x.value.labelNode); return x})
+  data.filter(prom => prom.status === 'fulfilled').forEach((x) => {
+//    debugger;
+    let summary = generateLabelSummary(x.value.labelNode);
+    let nodeToInsertAfter = x.value.node.querySelector('[data-test-id="price-sale"]')
+    let p = document.createElement('p')
+    p.textContent=summary.text
+    p.style.backgroundColor = labelColor.get(summary.label)
+
+    nodeToInsertAfter.after(p)
+//    console.log(labelSummary)
+//    x.value.node.append(labelSummary);
+//    return x;
+  })
 
   //add WOZ
 
@@ -195,112 +199,7 @@ function getLabels(input){
   return Promise.allSettled(promises);
 }
 
-// const call = await getToken().then(tokenPromise).then(extractAddressNodes).then(getLabel).then(extractLabels).then(console.log).catch((reason)=>console.log(reason))
 const call = await getTokenXhr().then(extractTokenPromise).then(extractAddressNodesPromise).then(getLabels).then(composeNodes).then(console.log).catch((reason)=>console.log(reason))
-//const call = await getToken().then(tokenPromise).then(extractAddressNodesPromise).then(getLabels).then(extractLabels).then(applyLabels).then(console.log).catch((reason)=>console.log(reason))
 
-//make onload return promise
-//chain this to next function
-
-
-/*
-const promiseA = new Promise((resolve, reject) => {
-  resolve(777);
-});
-// At this point, "promiseA" is already settled.
-promiseA.then((val) => console.log("asynchronous logging has val:", val));
-console.log("immediate logging");
-*/
-
-
-/*
-var filter   = Array.prototype.filter,
-    result   = document.querySelectorAll('div'),
-    filtered = filter.call( result, function( node ) {
-        return !!node.querySelectorAll('span').length;
-    });
-
-let k = document.querySelectorAll('[ data-parent=true]').forEach(function(item) {
-  let elem = item.querySelector('[data-child-gender=true]');
-  if (elem !== null && elem.innerHTML.trim() === 'male') {
-    console.log(item.id)
-  }
-})
-*/
-
-//var token = getToken().done(function(html){
-//     console.log(html.data);
-//})
-
-
-
-//getLabelInfo('2665BH 105').done(function( html ) {
-//    console.log(html);
-//    $( "#results" ).append( html );
-//  });
-
-
-/*
-$.ajax({
-    data:
-    {
-        __RequestVerificationToken:"CfDJ8Gkx_Jjze1JGvE7h9mrsL5_x87cAGUCJyDIyQxWZBbGJjt_ajF6ZTtO8eMbA57nsOXmnHdcpSnNIV84EgZ7nEzMQjfyI6jZQWrwRosZgU8RlUM8R2D5hQwPqhh7_2huOt-pqgoKEiUVWDUuNoo2PEko",
-        SearchValue:'2665BH+105'
-    },
-    type: 'POST',
-    dataType: 'json',
-    headers: { 'Cookie': '.AspNetCore.Antiforgery.PUaSdZbJ5i8=CfDJ8Gkx_Jjze1JGvE7h9mrsL5_x87cAGUCJyDIyQxWZBbGJjt_ajF6ZTtO8eMbA57nsOXmnHdcpSnNIV84EgZ7nEzMQjfyI6jZQWrwRosZgU8RlUM8R2D5hQwPqhh7_2huOt-pqgoKEiUVWDUuNoo2PEko' },
-    contentType:'application/x-www-form-urlencoded; charset=utf-8',
-    url: eponline
-}).done(function(data) {
-    // If successful
-    console.log(data);
-}).fail(function(jqXHR, textStatus, errorThrown) {
-    // If fail
-    console.log(textStatus + ': ' + errorThrown);
-});
-*/
-/*
-$.ajax({
-        url: "/scripts/S9/1.json",
-        type: "GET",
-        dataType: "json"
-    });
-*/
-//token.done(function(){console.log(this)})
-//$(".search-result__header-title-col").each( doStuff );
-
-///----
-
-/*$selector.on('load', function(){
-    var deferreds = $(this).find(".search-result__header-title-col").map(
-        function() {
-            var ajax = $.ajax({
-                getToken().then()
-            }
-        }
-    )
-});
-
-
-//-----
-$selector.on('click', function() {
-    // Map returned deferred objects
-    var deferreds = $(this).find('div').map(function() {
-        var ajax = $.ajax({
-            url: $(this).data('ajax-url'),
-            method: 'get'
-        });
-
-        return ajax;
-    });
-
-    // Use .apply onto array from deferreds
-    // Remember to use .get()
-    $.when.apply($, deferreds.get()).then(function() {
-        // Things to do when all is done
-    });
-});
-*/
 
 })();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         housingEnricherNL
 // @namespace    com.parker.david
-// @version      Alpha-v2
+// @version      Alpha-v3
 // @description  A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author       David Parker
 // @match        https://www.funda.nl/zoeken/huur/*
@@ -171,7 +171,7 @@ function composeNodes(data){
   data.filter(prom => prom.status === 'fulfilled').forEach((x) => {
 //    debugger;
     let summary = generateLabelSummary(x.value.labelNode);
-    let nodeToInsertAfter = x.value.node.querySelector('[data-test-id="price-sale"]')
+    let nodeToInsertAfter = x.value.node.querySelector('.flex-wrap.overflow-hidden')
     let p = document.createElement('p')
     p.textContent=summary.text
     p.style.backgroundColor = labelColor.get(summary.label)

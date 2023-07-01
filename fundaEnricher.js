@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         housingEnricherNL
 // @namespace    com.parker.david
-// @version      Alpha-v3
+// @version      V0.0.5
 // @description  A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author       David Parker
 // @match        https://www.funda.nl/zoeken/huur/*

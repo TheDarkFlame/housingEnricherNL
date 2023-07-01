@@ -7,7 +7,7 @@
 // @match        https://www.funda.nl/zoeken/huur/*
 // @match        https://www.funda.nl/zoeken/koop/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=funda.nl
-// @grant       GM.xmlhttpRequest
+// @grant       GM_xmlhttpRequest
 // @connect     www.ep-online.nl
 // @connect     www.wozwaardeloket.nl
 // ==/UserScript==
@@ -61,7 +61,7 @@ function extractToken(response){
 
 function getTokenXhr(){
     return new Promise((resolve, reject) => {
-        GM.xmlhttpRequest({
+        GM_xmlhttpRequest({
             onerror:reject,
             ontimeout:reject,
             onload: resolve,
@@ -75,7 +75,7 @@ function getTokenXhr(){
 
 function getLabelXhr(token, address){
     return new Promise((resolve, reject) => {
-        GM.xmlhttpRequest({
+        GM_xmlhttpRequest({
             onerror:reject,
             ontimeout:reject,
             onload: resolve,

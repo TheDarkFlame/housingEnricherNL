@@ -1,15 +1,17 @@
 // ==UserScript==
-// @name         housingEnricherNL
-// @namespace    com.parker.david
-// @version      V0.0.5
-// @description  A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
-// @author       David Parker
-// @match        https://www.funda.nl/zoeken/huur/*
-// @match        https://www.funda.nl/zoeken/koop/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=funda.nl
-// @grant       GM_xmlhttpRequest
-// @connect     www.ep-online.nl
-// @connect     www.wozwaardeloket.nl
+// @name          housingEnricherNL
+// @namespace     com.parker.david
+// @version       V0.0.6
+// @description   A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
+// @author        David Parker
+// @match         https://www.funda.nl/zoeken/huur/*
+// @match         https://www.funda.nl/zoeken/koop/*
+// @match         https://www.pararius.nl/koopwoningen/*
+// @match         https://www.pararius.nl/huurwoningen/*
+// @icon          https://www.google.com/s2/favicons?sz=64&domain=funda.nl
+// @grant         GM_xmlhttpRequest
+// @connect       www.ep-online.nl
+// @connect       www.wozwaardeloket.nl
 // ==/UserScript==
 
 //switching stuff for old vs new funda
@@ -29,8 +31,6 @@ const labelColor = new Map([
   [undefined, "#D8A3DD"],
 ]);
 
-
-(async () => {
 
 //debugger;
 'use strict';
@@ -199,7 +199,19 @@ function getLabels(input){
   return Promise.allSettled(promises);
 }
 
-const call = await getTokenXhr().then(extractTokenPromise).then(extractAddressNodesPromise).then(getLabels).then(composeNodes).then(console.log).catch((reason)=>console.log(reason))
 
+/// ---
+/// ---
+/// MAIN CODE
+/// ---
+/// ---
 
-})();
+// https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
+if (/funda\.nl/.test (location.hostname) ) {
+    // Run code for new funda.nl
+  getTokenXhr().then(extractTokenPromise).then(extractAddressNodesPromise).then(getLabels).then(composeNodes).catch((reason)=>console.log(reason))
+}
+else if (/pararius\.nl/.test (location.hostname) ) {
+    // Run code for pararius.nl
+  getTokenXhr().then(extractTokenPromise).then().then(getLabels).then().catch((reason)=>console.log(reason))
+}

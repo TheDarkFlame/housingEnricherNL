@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name          housingEnricherNL
 // @namespace     com.parker.david
-// @version       V0.0.7
+// @version       V0.0.8
 // @description   A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author        David Parker
-// @match         https://www.funda.nl/zoeken/huur/*
-// @match         https://www.funda.nl/zoeken/koop/*
-// @match         https://www.pararius.nl/koopwoningen/*
-// @match         https://www.pararius.nl/huurwoningen/*
+// @match         https://www.funda.nl/zoeken/huur*
+// @match         https://www.funda.nl/zoeken/koop*
+// @match         https://www.pararius.nl/koopwoningen*
+// @match         https://www.pararius.nl/huurwoningen*
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=funda.nl
 // @grant         GM_xmlhttpRequest
 // @connect       www.ep-online.nl
@@ -53,6 +53,7 @@ function extractPostcode(base) {
 }
 
 function extractAddress(base) {
+  if (!/\d/.test(base)) return undefined
   //get last number
   var number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0];
   //get last character
@@ -80,14 +81,6 @@ async function getLabel(token, address, postcode) {
   return extractLabel(response, address, postcode);
 }
 
-async function getWoz() {
-  return "WIP"
-}
-
-async function generateWozSummary(node){
-  return node
-}
-
 function extractLabel(response, address, postcode) {
   //todo: handle multi-page eponline results, one such example is "1072NK 2"
   var parser = new DOMParser();
@@ -101,17 +94,6 @@ function extractLabel(response, address, postcode) {
   return labelBlock
 }
 
-
-function extractAddressNodes(doc) {
-  let searchResultBase = doc.querySelectorAll('[data-test-id="search-result-item"]')
-  return Array.from(searchResultBase).map(node => {
-    let address = extractAddress(node.querySelector('[data-test-id="street-name-house-number"]').textContent.trim());
-    let postcode = extractPostcode(node.querySelector('[data-test-id="postal-code-city"]').textContent.trim());
-    return { node, address, postcode }});
-}
-
-
-// takes a node, parses it, and returns a string summary
 function generateLabelSummary(node) {
   if (node === undefined)
     return { text: "issue getting label", label: undefined }
@@ -136,6 +118,45 @@ function generateLabelSummary(node) {
 
 }
 
+async function getWoz() {
+  return "WIP"
+}
+
+async function generateWozSummary(node){
+  return node
+}
+
+function applyEnrichment(nodeToEnrich, labelSummary, wozText) {
+  let pLabel = document.createElement('p')
+  pLabel.textContent = labelSummary.text
+  pLabel.style.backgroundColor = labelColor.get(labelSummary.label)
+  nodeToEnrich.after(pLabel)
+  // handle pWoz
+}
+
+async function enrich(nodes) {
+  let token = await getToken()
+
+  await Promise.all(nodes.map(async (node) => {
+    let labelNode = await getLabel(token, node.address, node.postcode)
+    let labelSummary = generateLabelSummary(labelNode)
+    let wozNodes = await getWoz(node.address, node.postcode)
+    let wozSummary = generateWozSummary(wozNodes)
+    applyEnrichment(node.appendNode, labelSummary, wozSummary)
+  }));
+}
+
+function getNodesToEnrichPararius() {
+  let searchResultBase = document.querySelectorAll('.search-list__item--listing')
+  return Array.from(searchResultBase)
+    .map(node => {
+      let address = extractAddress(node.querySelector('.listing-search-item__link--title').textContent.trim());
+      let postcode = extractPostcode(node.querySelector(".listing-search-item__sub-title\\'").textContent.trim());
+      let appendNode = node.querySelector('.listing-search-item__features')
+      return { appendNode: appendNode, address: address, postcode: postcode };
+    })
+}
+
 function getNodesToEnrichFunda() {
   let searchResultBase = document.querySelectorAll('[data-test-id="search-result-item"]')
   return Array.from(searchResultBase)
@@ -147,35 +168,14 @@ function getNodesToEnrichFunda() {
     })
 }
 
-function enrich(nodeToEnrich, labelSummary, wozText) {
-  let pLabel = document.createElement('p')
-  pLabel.textContent = labelSummary.text
-  pLabel.style.backgroundColor = labelColor.get(labelSummary.label)
-  nodeToEnrich.after(pLabel)
-  // handle pWoz
-}
-
-async function fundaNew() {
-  let token = await getToken()
-  let nodes = getNodesToEnrichFunda()
-
-  await Promise.all(nodes.map(async (node) => {
-    let labelNode = await getLabel(token, node.address, node.postcode)
-    let labelSummary = generateLabelSummary(labelNode)
-    let wozNodes = await getWoz(node.address, node.postcode)
-    let wozSummary = generateWozSummary(wozNodes)
-    enrich(node.appendNode, labelSummary, wozSummary)
-  }));
-}
-
-
 // https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
 if (/funda\.nl/.test(location.hostname)) {
   // Run code for new funda.nl
-  await fundaNew()
+  await enrich(getNodesToEnrichFunda())
 }
 else if (/pararius\.nl/.test(location.hostname)) {
   // Run code for pararius.nl
+  await enrich(getNodesToEnrichPararius())
 }
 
 

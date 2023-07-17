@@ -17,6 +17,8 @@
 //switching stuff for old vs new funda
 //https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
 
+'use strict';
+
 const labelColor = new Map([
   ['A+++', '#00A54E'],
   ['A++', '#4CB948'],
@@ -33,185 +35,227 @@ const labelColor = new Map([
 
 
 //debugger;
-'use strict';
 
 const eponline = 'https://www.ep-online.nl/Energylabel/Search'
 
 
-function extractPostcode(base){
-    var parts = base.split(' ');
-    return parts[0] + parts[1];
+function extractPostcode(base) {
+  var parts = base.split(' ');
+  return parts[0] + parts[1];
 }
 
-function extractAddress(base){
-    //get last number
-    var number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0];
-    //get last character
-    var letter = base.match('\[a\-zA\-Z\]\(\?\!\.\*\[a\-zA\-Z\]\)')[0];
-    // if ends with letter, return number+letter, else just number
-    return (base.slice(-1) == letter) ? number + ' ' + letter : number
+function extractAddress(base) {
+  //get last number
+  var number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0];
+  //get last character
+  var letter = base.match('\[a\-zA\-Z\]\(\?\!\.\*\[a\-zA\-Z\]\)')[0];
+  // if ends with letter, return number+letter, else just number
+  return (base.slice(-1) == letter) ? number + ' ' + letter : number
 }
 
-function extractToken(response){
-    var parser = new DOMParser ();
-    var responseDoc = parser.parseFromString (response.responseText, "text/html");
-    var token = responseDoc.querySelector('[name="__RequestVerificationToken"]').value;
-    return token
-}
-
-function getTokenXhr(){
-    return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-            onerror:reject,
-            ontimeout:reject,
-            onload: resolve,
-            timeout:5000,
-            url:eponline,
-            method: 'GET',
-            responseType: 'json'
-        })
+async function getToken() {
+  let xhr = new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      onerror: reject,
+      ontimeout: reject,
+      onload: resolve,
+      timeout: 5000,
+      url: eponline,
+      method: 'GET',
+      responseType: 'json'
     })
-}
-
-function getLabelXhr(token, address){
-    return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-            onerror:reject,
-            ontimeout:reject,
-            onload: resolve,
-            timeout:5000,
-            url:eponline,
-            method: 'POST',
-            responseType: 'json',
-            headers:    {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            data:new URLSearchParams({
-                __RequestVerificationToken:token,
-                SearchValue:address
-            })
-        })
-    })
-}
-
-function extractTokenPromise(data){
-  return new Promise((resolve,reject) => {
-    var token = extractToken(data)
-    resolve(token)
   })
+  const response = await xhr;
+  let parser = new DOMParser();
+  let responseDoc = parser.parseFromString(response.responseText, "text/html");
+  return responseDoc.querySelector('[name="__RequestVerificationToken"]').value;
 }
 
-function extractLabel(response, address, postcode){
-    var parser = new DOMParser ();
-    var responseDoc = parser.parseFromString (response.responseText, "text/html");
+async function getLabel(token, address, postcode) {
+  let xhr = new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      onerror: reject,
+      ontimeout: reject,
+      onload: resolve,
+      timeout: 5000,
+      url: eponline,
+      method: 'POST',
+      responseType: 'json',
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      data: new URLSearchParams({
+        __RequestVerificationToken: token,
+        SearchValue: `${postcode} ${address}`
+      })
+    })
+  })
+  const response = await xhr;
+  return extractLabel(response, address, postcode);
+}
 
-    var labelBlock = Array.from(responseDoc.querySelectorAll('.se-result-item-nta.se-sm-noborder'))
-    .filter((doc)=>{
+async function getWoz() {
+  return "WIP"
+}
+
+async function generateWozSummary(node){
+  return node
+}
+
+function extractLabel(response, address, postcode) {
+  //todo: handle multi-page eponline results, one such example is "1072NK 2"
+  var parser = new DOMParser();
+  var responseDoc = parser.parseFromString(response.responseText, "text/html");
+
+  var labelBlock = Array.from(responseDoc.querySelectorAll('.se-result-item-nta.se-sm-noborder'))
+    .filter((doc) => {
       //empty = false, else true
-      return doc.querySelector('span.sort-value-pht.text-nowrap').textContent.trim() === postcode+' '+address
+      return doc.querySelector('span.sort-value-pht.text-nowrap').textContent.trim() === postcode + ' ' + address
     })[0]
-    return labelBlock
+  return labelBlock
 }
 
-function extractLabelPromise(data){
-    return new Promise((resolve, reject) => {
-      let labelResponse = data[1]
-      let dataObj = data[0]
-      let labelNode = extractLabel(labelResponse, dataObj.address, dataObj.postcode)
-      resolve({node:dataObj.node, labelNode:labelNode, postcode:dataObj.postcode, address:dataObj.address})
-  })
-}
 
-function extractAddressNodes(doc){
+function extractAddressNodes(doc) {
   let searchResultBase = doc.querySelectorAll('[data-test-id="search-result-item"]')
-  let results = Array.from(searchResultBase)
-  .map(node=>{
+  return Array.from(searchResultBase).map(node => {
     let address = extractAddress(node.querySelector('[data-test-id="street-name-house-number"]').textContent.trim());
     let postcode = extractPostcode(node.querySelector('[data-test-id="postal-code-city"]').textContent.trim());
-    return {node, address, postcode};
-  })
-  return results;
-}
-
-function extractAddressNodesPromise(token){
-  return new Promise((resolve, reject)=>{
-      resolve({token:token, results:extractAddressNodes(document)}
-    )})
+    return { node, address, postcode }});
 }
 
 
 // takes a node, parses it, and returns a string summary
-function generateLabelSummary(node){
-  if (node===undefined)
-    return {text:"issue getting label", label:undefined}
+function generateLabelSummary(node) {
+  if (node === undefined)
+    return { text: "issue getting label", label: undefined }
 
   //get the letter label
   let label = node.querySelector('[class*=bg-label-class-] > span').innerText.trim()
 
   // check if label is valid
-  let Opnamedatum = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x=> x.innerText.trim()==="Opnamedatum")[0].nextElementSibling.innerText.trim()
-  if (Opnamedatum === "-"){
-    return {text:"unofficial " + label, label:label}
+  let Opnamedatum = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x => x.innerText.trim() === "Opnamedatum")[0].nextElementSibling.innerText.trim()
+  if (Opnamedatum === "-") {
+    return { text: "unofficial " + label, label: label }
   }
 
   //check if pre-2021 type label
-  let energyIndex = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x=> x.innerText.trim()==="EI")
-  if (!!energyIndex.length){
-    return {text:"EnergyIndex: " + energyIndex[0].nextElementSibling.innerText.trim() + " (letter: "+label+")", label:label}
+  let energyIndex = Array.from(node.querySelectorAll('.se-item-description-nta')).filter(x => x.innerText.trim() === "EI")
+  if (!!energyIndex.length) {
+    return { text: "EnergyIndex: " + energyIndex[0].nextElementSibling.innerText.trim() + " (letter: " + label + ")", label: label }
   }
 
   // return current energy label class
-  return {text:"EnergyLabel: "+label, label:label}
+  return { text: "EnergyLabel: " + label, label: label }
 
 }
 
-
-function composeNodes(data){
-  //add energy label
-  data.filter(prom => prom.status === 'fulfilled').forEach((x) => {
-//    debugger;
-    let summary = generateLabelSummary(x.value.labelNode);
-    let nodeToInsertAfter = x.value.node.querySelector('.flex-wrap.overflow-hidden')
-    let p = document.createElement('p')
-    p.textContent=summary.text
-    p.style.backgroundColor = labelColor.get(summary.label)
-
-    nodeToInsertAfter.after(p)
-//    console.log(labelSummary)
-//    x.value.node.append(labelSummary);
-//    return x;
-  })
-
-  //add WOZ
-
-  //return
-  return Promise.resolve(data)
+function getNodesToEnrichFunda() {
+  let searchResultBase = document.querySelectorAll('[data-test-id="search-result-item"]')
+  return Array.from(searchResultBase)
+    .map(node => {
+      let address = extractAddress(node.querySelector('[data-test-id="street-name-house-number"]').textContent.trim());
+      let postcode = extractPostcode(node.querySelector('[data-test-id="postal-code-city"]').textContent.trim());
+      let appendNode = node.querySelector('.flex-wrap.overflow-hidden')
+      return { appendNode: appendNode, address: address, postcode: postcode };
+    })
 }
 
-
-// get label of each node, and return promise([promise(node), promise(label)])[]
-function getLabels(input){
-  // e = {node, address, postcode}
-  let promises = input.results.map(
-    e => Promise.all([Promise.resolve({node:e.node, postcode:e.postcode, address:e.address}), getLabelXhr(input.token, e.postcode+' '+e.address)])
-    .then(extractLabelPromise)
-  )
-  return Promise.allSettled(promises);
+function enrich(nodeToEnrich, labelSummary, wozText) {
+  let pLabel = document.createElement('p')
+  pLabel.textContent = labelSummary.text
+  pLabel.style.backgroundColor = labelColor.get(labelSummary.label)
+  nodeToEnrich.after(pLabel)
+  // handle pWoz
 }
 
+async function fundaNew() {
+  let token = await getToken()
+  let nodes = getNodesToEnrichFunda()
 
-/// ---
-/// ---
-/// MAIN CODE
-/// ---
-/// ---
+  await Promise.all(nodes.map(async (node) => {
+    let labelNode = await getLabel(token, node.address, node.postcode)
+    let labelSummary = generateLabelSummary(labelNode)
+    let wozNodes = await getWoz(node.address, node.postcode)
+    let wozSummary = generateWozSummary(wozNodes)
+    enrich(node.appendNode, labelSummary, wozSummary)
+  }));
+}
+
 
 // https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
-if (/funda\.nl/.test (location.hostname) ) {
-    // Run code for new funda.nl
-  getTokenXhr().then(extractTokenPromise).then(extractAddressNodesPromise).then(getLabels).then(composeNodes).catch((reason)=>console.log(reason))
+if (/funda\.nl/.test(location.hostname)) {
+  // Run code for new funda.nl
+  await fundaNew()
 }
-else if (/pararius\.nl/.test (location.hostname) ) {
-    // Run code for pararius.nl
-  getTokenXhr().then(extractTokenPromise).then().then(getLabels).then().catch((reason)=>console.log(reason))
+else if (/pararius\.nl/.test(location.hostname)) {
+  // Run code for pararius.nl
 }
+
+
+
+// process for wozwardeloket:
+
+//await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest?q=2665BH%2C%20105&rows=10", {
+//    "credentials": "omit",
+//    "headers": {
+//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+//        "Accept": "application/json, text/plain, */*",
+//        "Accept-Language": "en-US,en;q=0.5",
+//        "Sec-Fetch-Dest": "empty",
+//        "Sec-Fetch-Mode": "cors",
+//        "Sec-Fetch-Site": "cross-site"
+//    },
+//    "method": "GET",
+//    "mode": "cors"
+//});
+
+//await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup?fl=*&id=adr-8eba3e1f7fd5d73e3f3402da85f62b7c", {
+//    "credentials": "omit",
+//    "headers": {
+//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+//        "Accept": "application/json, text/plain, */*",
+//        "Accept-Language": "en-US,en;q=0.5",
+//        "Sec-Fetch-Dest": "empty",
+//        "Sec-Fetch-Mode": "cors",
+//        "Sec-Fetch-Site": "cross-site"
+//    },
+//    "method": "GET",
+//    "mode": "cors"
+//});
+
+//await fetch("https://www.wozwaardeloket.nl/wozwaardeloket-api/v1/wozwaarde/nummeraanduiding/1621200000027796", {
+//    "credentials": "include",
+//    "headers": {
+//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+//        "Accept": "application/json, text/plain, */*",
+//        "Accept-Language": "en-US,en;q=0.5",
+//        "Sec-Fetch-Dest": "empty",
+//        "Sec-Fetch-Mode": "cors",
+//        "Sec-Fetch-Site": "same-origin"
+//    },
+//    "referrer": "https://www.wozwaardeloket.nl/",
+//    "method": "GET",
+//    "mode": "cors"
+//});
+
+
+//{
+//	"properties": {
+//		"identificatie": "1621010000027755",
+//		"rdf_seealso": "http://bag.basisregistraties.overheid.nl/bag/id/verblijfsobject/1621010000027755",
+//		"oppervlakte": 71,
+//		"status": "Verblijfsobject in gebruik",
+//		"gebruiksdoel": "woonfunctie",
+//		"openbare_ruimte": "Dorpsstraat",
+//		"huisnummer": 105,
+//		"huisletter": "",
+//		"toevoeging": "",
+//		"postcode": "2665BH",
+//		"woonplaats": "Bleiswijk",
+//		"bouwjaar": 2017,
+//		"pandidentificatie": "1621100000037510",
+//		"pandstatus": "Pand in gebruik"
+//	}
+//}
+

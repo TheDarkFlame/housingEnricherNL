@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          housingEnricherNL
 // @namespace     com.parker.david
-// @version       V0.0.6
+// @version       V0.0.7
 // @description   A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author        David Parker
 // @match         https://www.funda.nl/zoeken/huur/*
@@ -38,6 +38,14 @@ const labelColor = new Map([
 
 const eponline = 'https://www.ep-online.nl/Energylabel/Search'
 
+async function Request(url, opt={}) {
+  Object.assign(opt, {url, timeout: 5000, responseType: 'json'})
+	return new Promise((resolve, reject) => {
+		opt.onerror = opt.ontimeout = reject
+		opt.onload = resolve
+		GM_xmlhttpRequest(opt)
+	})
+}
 
 function extractPostcode(base) {
   var parts = base.split(' ');
@@ -54,43 +62,21 @@ function extractAddress(base) {
 }
 
 async function getToken() {
-  let xhr = new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      onerror: reject,
-      ontimeout: reject,
-      onload: resolve,
-      timeout: 5000,
-      url: eponline,
-      method: 'GET',
-      responseType: 'json'
-    })
-  })
-  const response = await xhr;
+  let response = await Request(eponline, {method:'GET'})
   let parser = new DOMParser();
   let responseDoc = parser.parseFromString(response.responseText, "text/html");
   return responseDoc.querySelector('[name="__RequestVerificationToken"]').value;
 }
 
 async function getLabel(token, address, postcode) {
-  let xhr = new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      onerror: reject,
-      ontimeout: reject,
-      onload: resolve,
-      timeout: 5000,
-      url: eponline,
-      method: 'POST',
-      responseType: 'json',
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      data: new URLSearchParams({
-        __RequestVerificationToken: token,
-        SearchValue: `${postcode} ${address}`
-      })
+  let response = await Request(eponline, {
+    method:'POST',
+    headers:{"Content-Type": "application/x-www-form-urlencoded"},
+    data: new URLSearchParams({
+      __RequestVerificationToken: token,
+      SearchValue: `${postcode} ${address}`
     })
   })
-  const response = await xhr;
   return extractLabel(response, address, postcode);
 }
 

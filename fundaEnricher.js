@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          housingEnricherNL
 // @namespace     com.parker.david
-// @version       V0.0.8
+// @version       V0.0.9
 // @description   A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author        David Parker
 // @match         https://www.funda.nl/zoeken/huur*
@@ -38,13 +38,13 @@ const labelColor = new Map([
 
 const eponline = 'https://www.ep-online.nl/Energylabel/Search'
 
-async function Request(url, opt={}) {
-  Object.assign(opt, {url, timeout: 5000, responseType: 'json'})
-	return new Promise((resolve, reject) => {
-		opt.onerror = opt.ontimeout = reject
-		opt.onload = resolve
-		GM_xmlhttpRequest(opt)
-	})
+async function Request(url, opt = {}) {
+  Object.assign(opt, { url, timeout: 5000, responseType: 'json' })
+  return new Promise((resolve, reject) => {
+    opt.onerror = opt.ontimeout = reject
+    opt.onload = resolve
+    GM_xmlhttpRequest(opt)
+  })
 }
 
 function extractPostcode(base) {
@@ -63,7 +63,7 @@ function extractAddress(base) {
 }
 
 async function getToken() {
-  let response = await Request(eponline, {method:'GET'})
+  let response = await Request(eponline, { method: 'GET' })
   let parser = new DOMParser();
   let responseDoc = parser.parseFromString(response.responseText, "text/html");
   return responseDoc.querySelector('[name="__RequestVerificationToken"]').value;
@@ -71,8 +71,8 @@ async function getToken() {
 
 async function getLabel(token, address, postcode) {
   let response = await Request(eponline, {
-    method:'POST',
-    headers:{"Content-Type": "application/x-www-form-urlencoded"},
+    method: 'POST',
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     data: new URLSearchParams({
       __RequestVerificationToken: token,
       SearchValue: `${postcode} ${address}`
@@ -122,7 +122,7 @@ async function getWoz() {
   return "WIP"
 }
 
-async function generateWozSummary(node){
+async function generateWozSummary(node) {
   return node
 }
 
@@ -168,15 +168,20 @@ function getNodesToEnrichFunda() {
     })
 }
 
-// https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
-if (/funda\.nl/.test(location.hostname)) {
-  // Run code for new funda.nl
-  await enrich(getNodesToEnrichFunda())
-}
-else if (/pararius\.nl/.test(location.hostname)) {
-  // Run code for pararius.nl
-  await enrich(getNodesToEnrichPararius())
-}
+(async () => {
+
+  // https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
+  if (/funda\.nl/.test(location.hostname)) {
+    // Run code for new funda.nl
+    await enrich(getNodesToEnrichFunda())
+  }
+  else if (/pararius\.nl/.test(location.hostname)) {
+    // Run code for pararius.nl
+    await enrich(getNodesToEnrichPararius())
+  }
+})().catch(err => {
+  console.error(err);
+});
 
 
 

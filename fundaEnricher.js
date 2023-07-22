@@ -4,10 +4,11 @@
 // @version       V0.0.9
 // @description   A script with the goal of enriching funda.nl and pararius.nl sites with information about the listing from official sources
 // @author        David Parker
-// @match         https://www.funda.nl/zoeken/huur*
-// @match         https://www.funda.nl/zoeken/koop*
+// @match         https://www.funda.nl/*zoeken/huur*
+// @match         https://www.funda.nl/*zoeken/koop*
 // @match         https://www.pararius.nl/koopwoningen*
 // @match         https://www.pararius.nl/huurwoningen*
+// @match         https://www.pararius.com/*
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=funda.nl
 // @grant         GM_xmlhttpRequest
 // @connect       www.ep-online.nl
@@ -175,8 +176,8 @@ function getNodesToEnrichFunda() {
     // Run code for new funda.nl
     await enrich(getNodesToEnrichFunda())
   }
-  else if (/pararius\.nl/.test(location.hostname)) {
-    // Run code for pararius.nl
+  else if (/pararius\.nl/.test(location.hostname) || /pararius\.com/.test(location.hostname)) {
+    // Run code for pararius
     await enrich(getNodesToEnrichPararius())
   }
 })().catch(err => {

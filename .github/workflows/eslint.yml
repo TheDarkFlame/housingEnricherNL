@@ -17,6 +17,7 @@ on:
     branches: [ "main" ]
   schedule:
     - cron: '22 18 * * 3'
+  create: null
 
 jobs:
   eslint:

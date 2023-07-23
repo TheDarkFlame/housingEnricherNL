@@ -4,10 +4,11 @@
 // @version       V0.0.9
 // @description   A script that enriches popular housing sites in The Netherlands with information from various official sources
 // @author        David Parker
-// @match         https://www.funda.nl/zoeken/huur*
-// @match         https://www.funda.nl/zoeken/koop*
+// @match         https://www.funda.nl/*zoeken/huur*
+// @match         https://www.funda.nl/*zoeken/koop*
 // @match         https://www.pararius.nl/koopwoningen*
 // @match         https://www.pararius.nl/huurwoningen*
+// @match         https://www.pararius.com/*
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=funda.nl
 // @grant         GM_xmlhttpRequest
 // @connect       www.ep-online.nl
@@ -172,11 +173,11 @@ function getNodesToEnrichFunda () {
   // https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
   // eslint-disable-next-line no-undef
   if (/funda\.nl/.test(location.hostname)) {
-    // Run code for new funda.nl
+    // Run code for funda
     await enrich(getNodesToEnrichFunda())
-    // eslint-disable-next-line no-undef
-  } else if (/pararius\.nl/.test(location.hostname)) {
-    // Run code for pararius.nl
+  // eslint-disable-next-line no-undef
+  } else if (/pararius\.nl/.test(location.hostname) || /pararius\.com/.test(location.hostname)) {
+    // Run code for pararius
     await enrich(getNodesToEnrichPararius())
   }
 })().catch(err => {

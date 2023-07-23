@@ -42,6 +42,7 @@ async function Request (url, opt = {}) {
   return new Promise((resolve, reject) => {
     opt.onerror = opt.ontimeout = reject
     opt.onload = resolve
+    // eslint-disable-next-line no-undef
     GM_xmlhttpRequest(opt)
   })
 }
@@ -54,15 +55,18 @@ function extractPostcode (base) {
 function extractAddress (base) {
   if (!/\d/.test(base)) return undefined
   // get last number
-  const number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0]
+  // const number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0]
+  const number = base.match(/(\d+)(?!.*\d)/)[0]
   // get last character
-  const letter = base.match('\[a\-zA\-Z\]\(\?\!\.\*\[a\-zA\-Z\]\)')[0]
+  // const letter = base.match('\[a\-zA\-Z\]\(\?\!\.\*\[a\-zA\-Z\]\)')[0]
+  const letter = base.match(/[a-zA-Z](?!.*[a-zA-Z])/)[0]
   // if ends with letter, return number+letter, else just number
-  return (base.slice(-1) == letter) ? number + ' ' + letter : number
+  return (base.slice(-1) === letter) ? number + ' ' + letter : number
 }
 
 async function getToken () {
   const response = await Request(eponline, { method: 'GET' })
+  // eslint-disable-next-line no-undef
   const parser = new DOMParser()
   const responseDoc = parser.parseFromString(response.responseText, 'text/html')
   return responseDoc.querySelector('[name="__RequestVerificationToken"]').value
@@ -82,6 +86,7 @@ async function getLabel (token, address, postcode) {
 
 function extractLabel (response, address, postcode) {
   // todo: handle multi-page eponline results, one such example is "1072NK 2"
+  // eslint-disable-next-line no-undef
   const parser = new DOMParser()
   const responseDoc = parser.parseFromString(response.responseText, 'text/html')
 
@@ -167,9 +172,11 @@ function getNodesToEnrichFunda () {
 
 (async () => {
   // https://stackoverflow.com/questions/48587922/using-the-same-userscript-to-run-different-code-at-different-urls
+  // eslint-disable-next-line no-undef
   if (/funda\.nl/.test(location.hostname)) {
     // Run code for new funda.nl
     await enrich(getNodesToEnrichFunda())
+    // eslint-disable-next-line no-undef
   } else if (/pararius\.nl/.test(location.hostname)) {
     // Run code for pararius.nl
     await enrich(getNodesToEnrichPararius())
@@ -177,67 +184,3 @@ function getNodesToEnrichFunda () {
 })().catch(err => {
   console.error(err)
 })
-
-// process for wozwardeloket:
-
-// await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest?q=2665BH%2C%20105&rows=10", {
-//    "credentials": "omit",
-//    "headers": {
-//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
-//        "Accept": "application/json, text/plain, */*",
-//        "Accept-Language": "en-US,en;q=0.5",
-//        "Sec-Fetch-Dest": "empty",
-//        "Sec-Fetch-Mode": "cors",
-//        "Sec-Fetch-Site": "cross-site"
-//    },
-//    "method": "GET",
-//    "mode": "cors"
-// });
-
-// await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup?fl=*&id=adr-8eba3e1f7fd5d73e3f3402da85f62b7c", {
-//    "credentials": "omit",
-//    "headers": {
-//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
-//        "Accept": "application/json, text/plain, */*",
-//        "Accept-Language": "en-US,en;q=0.5",
-//        "Sec-Fetch-Dest": "empty",
-//        "Sec-Fetch-Mode": "cors",
-//        "Sec-Fetch-Site": "cross-site"
-//    },
-//    "method": "GET",
-//    "mode": "cors"
-// });
-
-// await fetch("https://www.wozwaardeloket.nl/wozwaardeloket-api/v1/wozwaarde/nummeraanduiding/1621200000027796", {
-//    "credentials": "include",
-//    "headers": {
-//        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
-//        "Accept": "application/json, text/plain, */*",
-//        "Accept-Language": "en-US,en;q=0.5",
-//        "Sec-Fetch-Dest": "empty",
-//        "Sec-Fetch-Mode": "cors",
-//        "Sec-Fetch-Site": "same-origin"
-//    },
-//    "referrer": "https://www.wozwaardeloket.nl/",
-//    "method": "GET",
-//    "mode": "cors"
-// });
-
-// {
-//	"properties": {
-//		"identificatie": "1621010000027755",
-//		"rdf_seealso": "http://bag.basisregistraties.overheid.nl/bag/id/verblijfsobject/1621010000027755",
-//		"oppervlakte": 71,
-//		"status": "Verblijfsobject in gebruik",
-//		"gebruiksdoel": "woonfunctie",
-//		"openbare_ruimte": "Dorpsstraat",
-//		"huisnummer": 105,
-//		"huisletter": "",
-//		"toevoeging": "",
-//		"postcode": "2665BH",
-//		"woonplaats": "Bleiswijk",
-//		"bouwjaar": 2017,
-//		"pandidentificatie": "1621100000037510",
-//		"pandstatus": "Pand in gebruik"
-//	}
-// }

@@ -1,0 +1,13 @@
+{
+  "name": "housingEnricherNL",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheDarkFlame/housingEnricherNL.git"
+  },
+  "keywords": [],
+  "author": "TheDarkFlame",
+  "bugs": {
+    "url": "https://github.com/TheDarkFlame/housingEnricherNL/issues"
+  },
+  "homepage": "https://github.com/TheDarkFlame/housingEnricherNL"
+}

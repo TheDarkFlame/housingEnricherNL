@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install eslint
-        run: npm install eslint
+        run: npm install eslint @microsoft/eslint-formatter-sarif
       # Runs the ESlint code analysis
       - name: Run ESLint
         # eslint exits 1 if it finds anything to report

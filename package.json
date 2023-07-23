@@ -1,0 +1,32 @@
+{
+  "name": "housingEnricherNL",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheDarkFlame/housingEnricherNL.git"
+  },
+  "keywords": [],
+  "author": "TheDarkFlame",
+  "bugs": {
+    "url": "https://github.com/TheDarkFlame/housingEnricherNL/issues"
+  },
+  "homepage": "https://github.com/TheDarkFlame/housingEnricherNL",
+  "devDependencies": {
+    "eslint": "^8.45.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^16.0.1",
+    "eslint-plugin-promise": "^6.1.1"
+  },
+  "eslintConfig": {
+    "env": {
+        "browser": true,
+        "es2021": true
+    },
+    "extends": "standard",
+    "parserOptions": {
+        "ecmaVersion": "latest"
+    },
+    "rules": {
+    }
+  }
+}

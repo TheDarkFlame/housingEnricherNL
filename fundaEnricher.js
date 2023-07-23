@@ -175,9 +175,8 @@ function getNodesToEnrichFunda () {
   if (/funda\.nl/.test(location.hostname)) {
     // Run code for funda
     await enrich(getNodesToEnrichFunda())
-  }
   // eslint-disable-next-line no-undef
-  else if (/pararius\.nl/.test(location.hostname) || /pararius\.com/.test(location.hostname)) {
+  } else if (/pararius\.nl/.test(location.hostname) || /pararius\.com/.test(location.hostname)) {
     // Run code for pararius
     await enrich(getNodesToEnrichPararius())
   }

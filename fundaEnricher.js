@@ -55,10 +55,8 @@ function extractPostcode (base) {
 function extractAddress (base) {
   if (!/\d/.test(base)) return undefined
   // get last number
-  // const number = base.match('\(\\d\+\)\(\?\!\.\*\\d\)')[0]
   const number = base.match(/(\d+)(?!.*\d)/)[0]
   // get last character
-  // const letter = base.match('\[a\-zA\-Z\]\(\?\!\.\*\[a\-zA\-Z\]\)')[0]
   const letter = base.match(/[a-zA-Z](?!.*[a-zA-Z])/)[0]
   // if ends with letter, return number+letter, else just number
   return (base.slice(-1) === letter) ? number + ' ' + letter : number

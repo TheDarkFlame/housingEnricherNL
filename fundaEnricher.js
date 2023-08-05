@@ -119,6 +119,20 @@ function generateLabelSummary (node) {
   return { text: 'EnergyLabel: ' + label, label }
 }
 
+async function latLongToAddressPostcode (lat, long) {
+  doc = await Request(`https://www.google.com/maps/search/${lat},${long}/`, { method: 'GET' })
+  address_string_raw = doc.querySelector('[data-section-id="144"]').innerText.trim()
+  plus_code_string = doc.querySelector('[data-section-id="154"]').innerText.trim()
+
+  town = plus_code_string.split(' ').slice(1).join(' ').trim()
+  address_string_cleaned = address_string_raw.replace(town, '').trim()
+  if (address_string_cleaned == '') return undefined
+  address_string_cleaned_arr = address_string_cleaned.split(',')
+  address = address_string_cleaned_arr[0].trim()
+  postcode = address_string_cleaned_arr[1].trim()
+  return { 'address':address, 'postcode':postcode }
+}
+
 async function getWoz () {
   return 'WIP'
 }

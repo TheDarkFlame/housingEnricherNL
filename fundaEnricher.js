@@ -120,7 +120,7 @@ function generateLabelSummary (node) {
 }
 
 async function latLongToAddressPostcode (lat, long) {
-  doc = await Request(`https://www.google.com/maps/search/${lat},${long}/`)
+  doc = await Request(`https://www.google.com/maps/search/${lat},${long}/`, { method: 'GET' })
   address_string_raw = doc.querySelector('[data-section-id="144"]').innerText.trim()
   plus_code_string = doc.querySelector('[data-section-id="154"]').innerText.trim()
 
